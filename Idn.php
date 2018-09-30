@@ -43,16 +43,6 @@ namespace Symfony\Polyfill\Intl\Idn;
  */
 final class Idn
 {
-    const BASE = 36;
-    const TMIN = 1;
-    const TMAX = 26;
-    const SKEW = 38;
-    const DAMP = 700;
-    const INITIAL_BIAS = 72;
-    const INITIAL_N = 128;
-    const PREFIX = 'xn--';
-    const DELIMITER = '-';
-
     private static $encodeTable = array(
         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
         'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
@@ -74,31 +64,30 @@ final class Idn
             @trigger_error('idn_to_ascii(): INTL_IDNA_VARIANT_2003 is deprecated', E_USER_DEPRECATED);
         }
 
-        $input = $domain;
         if (INTL_IDNA_VARIANT_UTS46 === $variant) {
-            $input = mb_strtolower($input, 'utf-8');
+            $domain = mb_strtolower($domain, 'utf-8');
         }
 
-        $parts = explode('.', $input);
+        $parts = explode('.', $domain);
 
         foreach ($parts as &$part) {
-            $length = \strlen($part);
-            if ($length < 1) {
+            if ('' === $part) {
                 return false;
             }
-            $part = self::encodePart($part);
-            if (false === $part) {
+            if (false === $part = self::encodePart($part)) {
                 return false;
             }
         }
 
         $output = implode('.', $parts);
-        $length = \strlen($output);
-        if ($length > 255) {
-            return false;
-        }
 
-        return $output;
+        $idna_info = array(
+            'result' => \strlen($output) > 255 ? false : $output,
+            'isTransitionalDifferent' => false,
+            'errors' => 0,
+        );
+
+        return $idna_info['result'];
     }
 
     public static function idn_to_utf8($domain, $options, $variant, &$idna_info = array())
@@ -108,33 +97,37 @@ final class Idn
         }
 
         $parts = explode('.', $domain);
+
         foreach ($parts as &$part) {
             $length = \strlen($part);
-            if ($length > 63 || $length < 1) {
+            if ($length < 1 || 63 < $length) {
                 continue;
             }
-            if (0 !== strpos($part, self::PREFIX)) {
+            if (0 !== strpos($part, 'xn--')) {
                 continue;
             }
 
-            $part = substr($part, \strlen(self::PREFIX));
+            $part = substr($part, 4);
             $part = self::decodePart($part);
         }
-        $output = implode('.', $parts);
-        $length = \strlen($output);
-        if ($length > 255) {
-            return false;
-        }
 
-        return $output;
+        $output = implode('.', $parts);
+
+        $idna_info = array(
+            'result' => \strlen($output) > 255 ? false : $output,
+            'isTransitionalDifferent' => false,
+            'errors' => 0,
+        );
+
+        return $idna_info['result'];
     }
 
     private static function encodePart($input)
     {
         $codePoints = self::listCodePoints($input);
 
-        $n = self::INITIAL_N;
-        $bias = self::INITIAL_BIAS;
+        $n = 128;
+        $bias = 72;
         $delta = 0;
         $h = $b = \count($codePoints['basic']);
 
@@ -146,7 +139,7 @@ final class Idn
             return $output;
         }
         if ($b > 0) {
-            $output .= self::DELIMITER;
+            $output .= '-';
         }
 
         $codePoints['nonBasic'] = array_unique($codePoints['nonBasic']);
@@ -156,25 +149,25 @@ final class Idn
         $length = mb_strlen($input, 'utf-8');
         while ($h < $length) {
             $m = $codePoints['nonBasic'][$i++];
-            $delta = $delta + ($m - $n) * ($h + 1);
+            $delta += ($m - $n) * ($h + 1);
             $n = $m;
 
             foreach ($codePoints['all'] as $c) {
-                if ($c < $n || $c < self::INITIAL_N) {
+                if ($c < $n || $c < 128) {
                     ++$delta;
                 }
                 if ($c === $n) {
                     $q = $delta;
-                    for ($k = self::BASE;; $k += self::BASE) {
+                    for ($k = 36;; $k += 36) {
                         $t = self::calculateThreshold($k, $bias);
                         if ($q < $t) {
                             break;
                         }
 
-                        $code = $t + (($q - $t) % (self::BASE - $t));
+                        $code = $t + (($q - $t) % (36 - $t));
                         $output .= self::$encodeTable[$code];
 
-                        $q = ($q - $t) / (self::BASE - $t);
+                        $q = ($q - $t) / (36 - $t);
                     }
 
                     $output .= self::$encodeTable[$q];
@@ -187,15 +180,10 @@ final class Idn
             ++$delta;
             ++$n;
         }
-        $out = self::PREFIX.$output;
-        $length = \strlen($out);
-        if ($length > 63 || $length < 1) {
-            return false;
-        }
 
-        $out = strtolower($out);
+        $output = 'xn--'.$output;
 
-        return $out;
+        return \strlen($output) < 1 || 63 < \strlen($output) ? false : strtolower($output);
     }
 
     private static function listCodePoints($input)
@@ -222,36 +210,38 @@ final class Idn
 
     private static function calculateThreshold($k, $bias)
     {
-        if ($k <= $bias + self::TMIN) {
-            return self::TMIN;
-        } elseif ($k >= $bias + self::TMAX) {
-            return self::TMAX;
+        if ($k <= $bias + 1) {
+            return 1;
         }
+        if ($k >= $bias + 26) {
+            return 26;
+        }
+
         return $k - $bias;
     }
 
     private static function adapt($delta, $numPoints, $firstTime)
     {
-        $delta = (int) ($firstTime ? $delta / self::DAMP : $delta / 2);
+        $delta = (int) ($firstTime ? $delta / 700 : $delta / 2);
         $delta += (int) ($delta / $numPoints);
 
         $k = 0;
-        while ($delta > ((self::BASE - self::TMIN) * self::TMAX) / 2) {
-            $delta = (int) ($delta / (self::BASE - self::TMIN));
-            $k = $k + self::BASE;
+        while ($delta > 35 * 13) {
+            $delta = (int) ($delta / 35);
+            $k = $k + 36;
         }
 
-        return $k + (int) (((self::BASE - self::TMIN + 1) * $delta) / ($delta + self::SKEW));
+        return $k + (int) (36 * $delta / ($delta + 38));
     }
 
     private static function decodePart($input)
     {
-        $n = self::INITIAL_N;
+        $n = 128;
         $i = 0;
-        $bias = self::INITIAL_BIAS;
+        $bias = 72;
         $output = '';
 
-        $pos = strrpos($input, self::DELIMITER);
+        $pos = strrpos($input, '-');
         if (false !== $pos) {
             $output = substr($input, 0, $pos++);
         } else {
@@ -260,25 +250,26 @@ final class Idn
 
         $outputLength = \strlen($output);
         $inputLength = \strlen($input);
+
         while ($pos < $inputLength) {
             $oldi = $i;
             $w = 1;
 
-            for ($k = self::BASE;; $k += self::BASE) {
+            for ($k = 36;; $k += 36) {
                 $digit = self::$decodeTable[$input[$pos++]];
-                $i = $i + ($digit * $w);
+                $i += $digit * $w;
                 $t = self::calculateThreshold($k, $bias);
 
                 if ($digit < $t) {
                     break;
                 }
 
-                $w = $w * (self::BASE - $t);
+                $w *= 36 - $t;
             }
 
-            $bias = self::adapt($i - $oldi, ++$outputLength, (0 === $oldi));
+            $bias = self::adapt($i - $oldi, ++$outputLength, 0 === $oldi);
             $n = $n + (int) ($i / $outputLength);
-            $i = $i % ($outputLength);
+            $i = $i % $outputLength;
             $output = mb_substr($output, 0, $i, 'utf-8').mb_chr($n, 'utf-8').mb_substr($output, $i, $outputLength - 1, 'utf-8');
 
             ++$i;
