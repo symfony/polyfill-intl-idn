@@ -73,8 +73,8 @@ final class Idn
 
         $parts = explode('.', $domain);
 
-        foreach ($parts as &$part) {
-            if ('' === $part) {
+        foreach ($parts as $i => &$part) {
+            if ('' === $part && \count($parts) > 1 + $i) {
                 return false;
             }
             if (false === $part = self::encodePart($part)) {
