@@ -127,6 +127,10 @@ final class Idn
 
     private static function encodePart($input)
     {
+        if (\substr($input, 0, 1) === '-' || \substr($input, -1) === '-') {
+            return false;
+        }
+
         $codePoints = self::listCodePoints($input);
 
         $n = 128;
