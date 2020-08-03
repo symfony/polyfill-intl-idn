@@ -155,14 +155,8 @@ final class Idn
         $labels = self::process((string) $domainName, $options, $info);
 
         foreach ($labels as $i => $label) {
-            // Only convert labels to punycode that contain non-ASCII code points and only if that
-            // label does not contain a character from the gen-delims set specified in
-            // {@link https://ietf.org/rfc/rfc3987.html#section-2.2}
+            // Only convert labels to punycode that contain non-ASCII code points
             if (1 === preg_match('/[^\x00-\x7F]/', $label)) {
-                if (false !== strpbrk($label, ':/?#[]@')) {
-                    continue;
-                }
-
                 try {
                     $label = 'xn--'.self::punycodeEncode($label);
                 } catch (Exception $e) {
