@@ -42,6 +42,14 @@ final class Idn
     const INTL_IDNA_VARIANT_2003 = 0;
     const INTL_IDNA_VARIANT_UTS46 = 1;
 
+    const IDNA_DEFAULT = 0;
+    const IDNA_ALLOW_UNASSIGNED = 1;
+    const IDNA_USE_STD3_RULES = 2;
+    const IDNA_CHECK_BIDI = 4;
+    const IDNA_CHECK_CONTEXTJ = 8;
+    const IDNA_NONTRANSITIONAL_TO_ASCII = 16;
+    const IDNA_NONTRANSITIONAL_TO_UNICODE = 32;
+
     const MAX_DOMAIN_SIZE = 253;
     const MAX_LABEL_SIZE = 63;
 
@@ -137,7 +145,7 @@ final class Idn
      *
      * @return string|false
      */
-    public static function idn_to_ascii($domainName, $options = IDNA_DEFAULT, $variant = self::INTL_IDNA_VARIANT_UTS46, &$idna_info = array())
+    public static function idn_to_ascii($domainName, $options = self::IDNA_DEFAULT, $variant = self::INTL_IDNA_VARIANT_UTS46, &$idna_info = array())
     {
         if (\PHP_VERSION_ID >= 70200 && self::INTL_IDNA_VARIANT_2003 === $variant) {
             @trigger_error('idn_to_ascii(): INTL_IDNA_VARIANT_2003 is deprecated', E_USER_DEPRECATED);
@@ -145,10 +153,10 @@ final class Idn
 
         $options = array(
             'CheckHyphens' => true,
-            'CheckBidi' => self::INTL_IDNA_VARIANT_2003 === $variant || 0 !== ($options & \IDNA_CHECK_BIDI),
-            'CheckJoiners' => self::INTL_IDNA_VARIANT_UTS46 === $variant && 0 !== ($options & \IDNA_CHECK_CONTEXTJ),
-            'UseSTD3ASCIIRules' => 0 !== ($options & \IDNA_USE_STD3_RULES),
-            'Transitional_Processing' => self::INTL_IDNA_VARIANT_2003 === $variant || 0 === ($options & \IDNA_NONTRANSITIONAL_TO_ASCII),
+            'CheckBidi' => self::INTL_IDNA_VARIANT_2003 === $variant || 0 !== ($options & self::IDNA_CHECK_BIDI),
+            'CheckJoiners' => self::INTL_IDNA_VARIANT_UTS46 === $variant && 0 !== ($options & self::IDNA_CHECK_CONTEXTJ),
+            'UseSTD3ASCIIRules' => 0 !== ($options & self::IDNA_USE_STD3_RULES),
+            'Transitional_Processing' => self::INTL_IDNA_VARIANT_2003 === $variant || 0 === ($options & self::IDNA_NONTRANSITIONAL_TO_ASCII),
             'VerifyDnsLength' => true,
         );
         $info = new Info();
@@ -190,7 +198,7 @@ final class Idn
      *
      * @return string|false
      */
-    public static function idn_to_utf8($domainName, $options = IDNA_DEFAULT, $variant = self::INTL_IDNA_VARIANT_UTS46, &$idna_info = array())
+    public static function idn_to_utf8($domainName, $options = self::IDNA_DEFAULT, $variant = self::INTL_IDNA_VARIANT_UTS46, &$idna_info = array())
     {
         if (\PHP_VERSION_ID >= 70200 && self::INTL_IDNA_VARIANT_2003 === $variant) {
             @trigger_error('idn_to_utf8(): INTL_IDNA_VARIANT_2003 is deprecated', E_USER_DEPRECATED);
@@ -199,10 +207,10 @@ final class Idn
         $info = new Info();
         $labels = self::process((string) $domainName, array(
             'CheckHyphens' => true,
-            'CheckBidi' => self::INTL_IDNA_VARIANT_2003 === $variant || 0 !== ($options & \IDNA_CHECK_BIDI),
-            'CheckJoiners' => self::INTL_IDNA_VARIANT_UTS46 === $variant && 0 !== ($options & \IDNA_CHECK_CONTEXTJ),
-            'UseSTD3ASCIIRules' => 0 !== ($options & \IDNA_USE_STD3_RULES),
-            'Transitional_Processing' => self::INTL_IDNA_VARIANT_2003 === $variant || 0 === ($options & \IDNA_NONTRANSITIONAL_TO_UNICODE),
+            'CheckBidi' => self::INTL_IDNA_VARIANT_2003 === $variant || 0 !== ($options & self::IDNA_CHECK_BIDI),
+            'CheckJoiners' => self::INTL_IDNA_VARIANT_UTS46 === $variant && 0 !== ($options & self::IDNA_CHECK_CONTEXTJ),
+            'UseSTD3ASCIIRules' => 0 !== ($options & self::IDNA_USE_STD3_RULES),
+            'Transitional_Processing' => self::INTL_IDNA_VARIANT_2003 === $variant || 0 === ($options & self::IDNA_NONTRANSITIONAL_TO_UNICODE),
         ), $info);
         $idna_info = array(
             'result' => implode('.', $labels),
