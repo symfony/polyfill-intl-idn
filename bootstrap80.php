@@ -121,8 +121,8 @@ if (!defined('IDNA_ERROR_CONTEXTJ')) {
 }
 
 if (!function_exists('idn_to_ascii')) {
-    function idn_to_ascii(string $domain, int $flags = 0, int $variant = INTL_IDNA_VARIANT_UTS46, &$idna_info = null): string|false { return p\Idn::idn_to_ascii($domain, $flags, $variant, $idna_info); }
+    function idn_to_ascii(?string $domain, ?int $flags = 0, ?int $variant = INTL_IDNA_VARIANT_UTS46, &$idna_info = null): string|false { return p\Idn::idn_to_ascii((string) $domain, (int) $flags, (int) $variant, $idna_info); }
 }
 if (!function_exists('idn_to_utf8')) {
-    function idn_to_utf8(string $domain, int $flags = 0, int $variant = INTL_IDNA_VARIANT_UTS46, &$idna_info = null): string|false { return p\Idn::idn_to_utf8($domain, $flags, $variant, $idna_info); }
+    function idn_to_utf8(?string $domain, ?int $flags = 0, ?int $variant = INTL_IDNA_VARIANT_UTS46, &$idna_info = null): string|false { return p\Idn::idn_to_utf8((string) $domain, (int) $flags, (int) $variant, $idna_info); }
 }
