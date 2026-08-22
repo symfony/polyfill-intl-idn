@@ -62,6 +62,13 @@ final class Idn
     public const MAX_INT = 2147483647;
 
     /**
+     * Punycode decoding does work quadratic in the payload length. Valid ACE
+     * labels are limited to 63 bytes, so payloads beyond this (generous) bound
+     * are rejected without being decoded to keep the work bounded.
+     */
+    private const MAX_DECODE_PAYLOAD_SIZE = 1024;
+
+    /**
      * Contains the numeric value of a basic code point (for use in representing integers) in the
      * range 0 to BASE-1, or -1 if b is does not represent a value.
      *
@@ -353,6 +360,16 @@ final class Idn
                 // Step 4.1. If the label contains any non-ASCII code point (i.e., a code point greater than U+007F),
                 // record that there was an error, and continue with the next label.
                 if (preg_match('/[^\x00-\x7F]/', $label)) {
+                    $info->errors |= self::ERROR_PUNYCODE;
+
+                    continue;
+                }
+
+                // The decoder does work quadratic in the payload length. Valid
+                // labels are at most 63 bytes long, so a payload beyond this
+                // bound is always invalid input: reject it without decoding,
+                // like ext-intl does, to avoid spending unbounded time on it.
+                if (\strlen($label) - 4 > self::MAX_DECODE_PAYLOAD_SIZE) {
                     $info->errors |= self::ERROR_PUNYCODE;
 
                     continue;
